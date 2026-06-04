@@ -117,10 +117,10 @@ app = Server("mssql-readonly")
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:
-    # api_key 改為 optional（不在 required 裡）
-    # 若 .env 未設定 API_KEY，呼叫時不需要傳入
-    api_key_prop = {"api_key": {"type": "string", "description": "API key（若伺服器有設定才需要）"}}
-
+    # api_key 完全從 schema 移除：
+    # - 模型看不到這個參數，不會問使用者要 key
+    # - 若 .env 有設定 API_KEY，可透過呼叫端（如 my-agent 的 inject）自動帶入
+    # - call_tool 的 check_api_key() 仍會驗證（若 API_KEY 有設定的話）
     return [
         Tool(
             name="query",
@@ -129,7 +129,6 @@ async def list_tools() -> list[Tool]:
                 "type": "object",
                 "properties": {
                     "sql": {"type": "string", "description": "The SELECT query to execute"},
-                    **api_key_prop,
                 },
                 "required": ["sql"],
             },
@@ -139,7 +138,7 @@ async def list_tools() -> list[Tool]:
             description="List all tables in the database",
             inputSchema={
                 "type": "object",
-                "properties": {**api_key_prop},
+                "properties": {},
                 "required": [],
             },
         ),
@@ -150,7 +149,6 @@ async def list_tools() -> list[Tool]:
                 "type": "object",
                 "properties": {
                     "table": {"type": "string"},
-                    **api_key_prop,
                 },
                 "required": ["table"],
             },
