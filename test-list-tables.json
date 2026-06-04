@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_tables","arguments":{"api_key":"your-api-key"}},"id":2}
