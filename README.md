@@ -75,7 +75,7 @@ Stdio 模式不需要手動啟動 server。AI agent（如 Claude Code）會在�
   "mcpServers": {
     "mssql": {
       "command": "python",
-      "args": ["C:/path/to/server.py"]
+      "args": ["C:\\path\\to\\server.py"]
     }
   }
 }
