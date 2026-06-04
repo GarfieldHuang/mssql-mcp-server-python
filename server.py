@@ -15,17 +15,19 @@ from mcp.types import Tool, TextContent
 
 load_dotenv()
 
+# api_key 驗證為 optional：
+#   - 若 .env 有設定 API_KEY → 工具呼叫時需要帶入 api_key 並驗證
+#   - 若未設定 API_KEY（stdio 本機模式）→ 跳過驗證，直接執行
 API_KEY    = os.getenv("API_KEY")
 JWT_SECRET = os.getenv("JWT_SECRET")
 HTTP_PORT  = int(os.getenv("HTTP_PORT", 3000))
 USE_HTTP   = "--http" in sys.argv
 
-if not API_KEY:
-    print("ERROR: API_KEY not set in .env", file=sys.stderr)
-    sys.exit(1)
 if USE_HTTP and not JWT_SECRET:
     print("ERROR: JWT_SECRET not set in .env", file=sys.stderr)
     sys.exit(1)
+if USE_HTTP and not API_KEY:
+    print("WARNING: API_KEY not set, HTTP mode will have no tool-level auth", file=sys.stderr)
 
 CONN_STR = (
     f"DRIVER={{{os.getenv('DB_DRIVER', 'ODBC Driver 18 for SQL Server')}}};"
@@ -73,6 +75,15 @@ def validate_query(query: str) -> tuple[bool, str]:
         return False, "Query must include TOP or WHERE to limit result size"
 
     return True, ""
+
+def check_api_key(arguments: dict) -> tuple[bool, str]:
+    """若 API_KEY 有設定則驗證，否則直接通過。"""
+    if not API_KEY:
+        return True, ""
+    provided = arguments.get("api_key", "")
+    if provided != API_KEY:
+        return False, "Error: Invalid API key"
+    return True, ""
 # ─────────────────────────────────────────────────────────
 
 # ── JWT 驗證（HTTP 模式用）────────────────────────────────
@@ -106,6 +117,10 @@ app = Server("mssql-readonly")
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:
+    # api_key 改為 optional（不在 required 裡）
+    # 若 .env 未設定 API_KEY，呼叫時不需要傳入
+    api_key_prop = {"api_key": {"type": "string", "description": "API key（若伺服器有設定才需要）"}}
+
     return [
         Tool(
             name="query",
@@ -113,10 +128,10 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "sql":     {"type": "string", "description": "The SELECT query to execute"},
-                    "api_key": {"type": "string", "description": "API key for authentication"},
+                    "sql": {"type": "string", "description": "The SELECT query to execute"},
+                    **api_key_prop,
                 },
-                "required": ["sql", "api_key"],
+                "required": ["sql"],
             },
         ),
         Tool(
@@ -124,10 +139,8 @@ async def list_tools() -> list[Tool]:
             description="List all tables in the database",
             inputSchema={
                 "type": "object",
-                "properties": {
-                    "api_key": {"type": "string"},
-                },
-                "required": ["api_key"],
+                "properties": {**api_key_prop},
+                "required": [],
             },
         ),
         Tool(
@@ -136,19 +149,19 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "table":   {"type": "string"},
-                    "api_key": {"type": "string"},
+                    "table": {"type": "string"},
+                    **api_key_prop,
                 },
-                "required": ["table", "api_key"],
+                "required": ["table"],
             },
         ),
     ]
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    api_key = arguments.get("api_key", "")
-    if api_key != API_KEY:
-        return [TextContent(type="text", text="Error: Invalid API key")]
+    ok, err = check_api_key(arguments)
+    if not ok:
+        return [TextContent(type="text", text=err)]
 
     if name == "query":
         sql = arguments.get("sql", "")
@@ -192,7 +205,6 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 async def main():
     if USE_HTTP:
-        # HTTP mode — StreamableHTTP via mcp's built-in support
         from mcp.server.streamable_http import StreamableHTTPServerTransport
         transport = StreamableHTTPServerTransport(port=HTTP_PORT, auth_check=verify_jwt)
         print(f"[mssql-mcp] HTTP mode, listening on port {HTTP_PORT}", file=sys.stderr)
