@@ -64,32 +64,35 @@ Paste the output into `.env` as `API_KEY=...`.
 
 ## Usage
 
-### Stdio mode (local agent)
+### Stdio mode — 本機 AI agent 使用
 
-```bash
-python server.py
-```
+Stdio 模式不需要手動啟動 server。AI agent（如 Claude Code）會在需要時自動啟動 `server.py`，透過 stdin/stdout 溝通，用完自動關閉。
 
-Configure in `claude_desktop_config.json`:
+在 `claude_desktop_config.json` 登記一次即可：
 
 ```json
 {
   "mcpServers": {
     "mssql": {
       "command": "python",
-      "args": ["/path/to/server.py"]
+      "args": ["C:/path/to/server.py"]
     }
   }
 }
 ```
 
-### HTTP mode (remote agent)
+登記後重啟 Claude Code，即可直接用自然語言查詢資料庫，無需手動執行任何指令。
 
-```bash
+### HTTP mode — 遠端 AI agent 使用
+
+如果 AI agent 在其他機器上，需要改用 HTTP 模式。在能連到 MSSQL 的機器上執行：
+
+```cmd
 python server.py --http
 ```
 
-Agents connect via:
+Server 會持續在背景執行（保持 cmd 視窗開著），監聽 `HTTP_PORT`（預設 3000）。  
+遠端 agent 透過 HTTPS + JWT token 連線：
 
 ```http
 POST http://your-server:3000/mcp
