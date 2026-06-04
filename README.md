@@ -33,11 +33,34 @@ If none installed, download from: https://learn.microsoft.com/sql/connect/odbc/d
 
 ## Installation
 
-```bash
-pip install -r requirements.txt
-cp .env.example .env
-# Fill in your DB credentials and API_KEY
+**Step 1 — Clone the repo:**
+
+```cmd
+git clone https://github.com/GarfieldHuang/mssql-mcp-server-python.git
+cd mssql-mcp-server-python
 ```
+
+**Step 2 — Install Python dependencies:**
+
+```cmd
+pip install -r requirements.txt
+```
+
+**Step 3 — Set up environment variables:**
+
+```cmd
+copy .env.example .env
+```
+
+Open `.env` and fill in your DB credentials and `API_KEY`.
+
+**Step 4 — Generate API_KEY:**
+
+```cmd
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Paste the output into `.env` as `API_KEY=...`.
 
 ## Usage
 
@@ -80,7 +103,7 @@ Three test JSON files are included. Before running, edit each file and replace `
 **Step 1 — Check server starts and lists tools:**
 
 ```cmd
-node server.py < test-list-tools.json
+python server.py < test-list-tools.json
 ```
 
 Expected output: JSON with `query`, `list_tables`, `describe_table`.
@@ -130,8 +153,3 @@ CREATE USER mcp_agent FOR LOGIN mcp_agent;
 EXEC sp_addrolemember 'db_datareader', 'mcp_agent';
 ```
 
-## Generate API_KEY
-
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
