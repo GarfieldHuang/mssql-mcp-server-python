@@ -156,14 +156,22 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="query",
             description=(
-                "Run a read-only SQL SELECT query against the MSSQL database. "
-                "If this tool returns an error, report the error message directly to the user "
-                "Do NOT retry — instead explain the error to the user and guide them to fix the configuration based on the error message."
+                "Execute a read-only SQL SELECT query against the MSSQL database. "
+                "IMPORTANT RULES:\n"
+                "- Only SELECT statements are allowed\n"
+                "- Query MUST include TOP or WHERE clause to limit results (e.g. SELECT TOP 100 * FROM tablename)\n"
+                "- To preview data in a table: SELECT TOP 100 * FROM dbo.tablename\n"
+                "- To filter: SELECT TOP 100 * FROM dbo.tablename WHERE column = 'value'\n"
+                "- Always qualify table names with schema (e.g. dbo.tablename)\n"
+                "If this tool returns an error, explain the error and guide the user to fix it. Do NOT retry."
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "sql": {"type": "string", "description": "The SELECT query to execute"},
+                    "sql": {
+                        "type": "string",
+                        "description": "The SELECT query. Must include TOP or WHERE. Example: SELECT TOP 100 * FROM dbo.mytable"
+                    },
                 },
                 "required": ["sql"],
             },
@@ -171,9 +179,10 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="list_tables",
             description=(
-                "List all user tables in the MSSQL database. "
-                "If this tool returns an error, report the error message directly to the user "
-                "Do NOT retry — instead explain the error to the user and guide them to fix the configuration based on the error message."
+                "List all user tables in the MSSQL database with their schema names. "
+                "Call this first to discover what tables are available before querying. "
+                "Returns TABLE_SCHEMA and TABLE_NAME for each table. "
+                "If this tool returns an error, explain the error and guide the user to fix it. Do NOT retry."
             ),
             inputSchema={
                 "type": "object",
@@ -184,14 +193,18 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="describe_table",
             description=(
-                "Show column names and data types for a specific table in the MSSQL database. "
-                "If this tool returns an error, report the error message directly to the user "
-                "Do NOT retry — instead explain the error to the user and guide them to fix the configuration based on the error message."
+                "Show all column names and data types for a specific table. "
+                "Call this to understand the structure of a table before writing a query. "
+                "Use just the table name without schema prefix (e.g. 'mytable', not 'dbo.mytable'). "
+                "If this tool returns an error, explain the error and guide the user to fix it. Do NOT retry."
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "table": {"type": "string"},
+                    "table": {
+                        "type": "string",
+                        "description": "Table name only, without schema prefix. Example: 'orders' not 'dbo.orders'"
+                    },
                 },
                 "required": ["table"],
             },
