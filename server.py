@@ -124,7 +124,11 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="query",
-            description="Run a read-only SQL SELECT query against the database",
+            description=(
+                "Run a read-only SQL SELECT query against the MSSQL database. "
+                "If this tool returns an error, report the error message directly to the user "
+                "and do NOT retry automatically."
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -135,7 +139,11 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="list_tables",
-            description="List all tables in the database",
+            description=(
+                "List all user tables in the MSSQL database. "
+                "If this tool returns an error, report the error message directly to the user "
+                "and do NOT retry automatically."
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -144,7 +152,11 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="describe_table",
-            description="Show columns and types for a specific table",
+            description=(
+                "Show column names and data types for a specific table in the MSSQL database. "
+                "If this tool returns an error, report the error message directly to the user "
+                "and do NOT retry automatically."
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
