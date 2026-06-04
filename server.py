@@ -51,6 +51,37 @@ def run_query_sync(sql: str) -> list[dict]:
 
 async def run_query(sql: str) -> list[dict]:
     return await asyncio.to_thread(run_query_sync, sql)
+
+def friendly_db_error(e: Exception) -> str:
+    """把常見的 DB 錯誤轉成對使用者友善的說明和修復建議。"""
+    msg = str(e)
+    if "Data source name not found" in msg or "找不到資料來源名稱" in msg or "IM002" in msg:
+        return (
+            "DB Error: ODBC 驅動程式未安裝或名稱錯誤。\n"
+            "修復步驟：\n"
+            "1. 確認已安裝正確的 ODBC 驅動，執行：python -c \"import pyodbc; print(pyodbc.drivers())\"\n"
+            "2. 將輸出的驅動名稱填入 .env 的 DB_DRIVER\n"
+            "3. 若清單為空，請至 https://learn.microsoft.com/zh-tw/sql/connect/odbc/download-odbc-driver-for-sql-server 下載安裝"
+        )
+    if "Login failed" in msg or "18456" in msg:
+        return (
+            "DB Error: 資料庫登入失敗。\n"
+            "修復步驟：請確認 .env 的 DB_USER 和 DB_PASSWORD 是否正確。"
+        )
+    if "Network address" in msg or "TCP Provider" in msg or "10061" in msg or "連線被拒" in msg:
+        return (
+            "DB Error: 無法連線到資料庫伺服器。\n"
+            "修復步驟：\n"
+            "1. 確認 DB_SERVER 和 DB_PORT 設定正確\n"
+            "2. 確認資料庫伺服器正在執行且網路可達\n"
+            "3. 確認防火牆沒有封鎖該 port"
+        )
+    if "Cannot open database" in msg or "4060" in msg:
+        return (
+            f"DB Error: 資料庫不存在或無權限存取。\n"
+            "修復步驟：請確認 .env 的 DB_DATABASE 名稱正確，且帳號有存取權限。"
+        )
+    return f"DB Error: {msg}"
 # ─────────────────────────────────────────────────────────
 
 # ── 安全驗證 ──────────────────────────────────────────────
@@ -127,7 +158,7 @@ async def list_tools() -> list[Tool]:
             description=(
                 "Run a read-only SQL SELECT query against the MSSQL database. "
                 "If this tool returns an error, report the error message directly to the user "
-                "and do NOT retry automatically."
+                "Do NOT retry — instead explain the error to the user and guide them to fix the configuration based on the error message."
             ),
             inputSchema={
                 "type": "object",
@@ -142,7 +173,7 @@ async def list_tools() -> list[Tool]:
             description=(
                 "List all user tables in the MSSQL database. "
                 "If this tool returns an error, report the error message directly to the user "
-                "and do NOT retry automatically."
+                "Do NOT retry — instead explain the error to the user and guide them to fix the configuration based on the error message."
             ),
             inputSchema={
                 "type": "object",
@@ -155,7 +186,7 @@ async def list_tools() -> list[Tool]:
             description=(
                 "Show column names and data types for a specific table in the MSSQL database. "
                 "If this tool returns an error, report the error message directly to the user "
-                "and do NOT retry automatically."
+                "Do NOT retry — instead explain the error to the user and guide them to fix the configuration based on the error message."
             ),
             inputSchema={
                 "type": "object",
@@ -184,7 +215,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return [TextContent(type="text", text=json.dumps(rows, ensure_ascii=False, indent=2, default=str))]
         except Exception as e:
             print(f"[query error] {e}", file=sys.stderr)
-            return [TextContent(type="text", text=f"DB Error: {e}")]
+            return [TextContent(type="text", text=friendly_db_error(e))]
 
     elif name == "list_tables":
         try:
@@ -194,7 +225,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
             return [TextContent(type="text", text=json.dumps(rows, ensure_ascii=False, indent=2))]
         except Exception as e:
-            return [TextContent(type="text", text=f"DB Error: {e}")]
+            return [TextContent(type="text", text=friendly_db_error(e))]
 
     elif name == "describe_table":
         table = arguments.get("table", "")
@@ -208,7 +239,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
             return [TextContent(type="text", text=json.dumps(rows, ensure_ascii=False, indent=2))]
         except Exception as e:
-            return [TextContent(type="text", text=f"DB Error: {e}")]
+            return [TextContent(type="text", text=friendly_db_error(e))]
 
     return [TextContent(type="text", text=f"Error: Unknown tool {name}")]
 
